@@ -97,6 +97,8 @@ extern int sys_mknod(void);
 extern int sys_open(void);
 extern int sys_pipe(void);
 extern int sys_read(void);
+extern int writecount(void);
+extern int setwritecount(void);
 extern int sys_sbrk(void);
 extern int sys_sleep(void);
 extern int sys_unlink(void);
@@ -123,6 +125,8 @@ static int (*syscalls[])(void) = {
 [SYS_uptime]  sys_uptime,
 [SYS_open]    sys_open,
 [SYS_write]   sys_write,
+[SYS_writecount]	writecount,
+[SYS_setwritecount]	setwritecount,
 [SYS_mknod]   sys_mknod,
 [SYS_unlink]  sys_unlink,
 [SYS_link]    sys_link,

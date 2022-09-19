@@ -8,6 +8,8 @@ int exit(void) __attribute__((noreturn));
 int wait(void);
 int pipe(int*);
 int write(int, const void*, int);
+int writecount(void);
+int setwritecount(int);
 int read(int, void*, int);
 int close(int);
 int kill(int);

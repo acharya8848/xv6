@@ -177,6 +177,7 @@ UPROGS=\
 	_cat\
 	_echo\
 	_forktest\
+	_writecount\
 	_grep\
 	_init\
 	_kill\

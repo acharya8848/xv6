@@ -15,6 +15,8 @@
 #define SYS_uptime    14
 #define SYS_open      15
 #define SYS_write     16
+#define SYS_writecount	24
+#define SYS_setwritecount	25
 #define SYS_mknod     17
 #define SYS_unlink    18
 #define SYS_link      19
