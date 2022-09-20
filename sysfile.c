@@ -96,7 +96,7 @@ sys_write(void)
 }
 
 int
-setwritecount(void)
+sys_setwritecount(void)
 {
   int arg = 0;
   if (argint(0, &arg) != 0)
@@ -107,7 +107,7 @@ setwritecount(void)
 }
 
 int
-writecount(void)
+sys_writecount(void)
 {
   return write_count;
 }
