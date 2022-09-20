@@ -9,35 +9,35 @@
 int
 main(int argc, char *argv[])
 {
-  int fd[2];
-  if (pipe(fd) != 0) {
-    printf(1, "pipe failed\r\n");
+  printf(1, "Resetting writecount to 0 ... ");
+  if ((setwritecount(0) != 0) || (writecount() != 0)){
+    printf(1, "failed\r\n");
     exit();
   }
+  write(1, "done\r\n", 6);
   // Reset the writecount
-  setwritecount(0);
-  // Write to the pipe
-  write(fd[WRITE], "hello world!", 12);
   if (writecount() == 1) {
-    printf(1, "Single write succeeded %d\r\n", 1);
+    printf(1, "First write increased the writecount to %d\r\n", writecount());
   } else {
     printf(1, "Single write failed %d\r\n", writecount());
+    exit();
   }
   // Set write count
+  printf(1, "Setting writecount to 5 ... ");
   if ((setwritecount(5) != 0) || (writecount() != 5)){
-    printf(1, "setwritecount failed\r\n");
+    printf(1, "failed\r\n");
+    exit();
   }
   // Write after setwritecount
-  write(fd[WRITE], "another one!", 12);
+  write(1, "done\r\n", 6);
   if (writecount() == 6) {
-    printf(1, "Double write succeeded %d\r\n", 6);
+    printf(1, "Write after setting writecount to 5 increased it to %d\r\n", writecount());
   } else {
     printf(1, "Double write failed %d \r\n", writecount());
+    exit();
   }
 
-  // Close the pipe
-  close(fd[WRITE]);
-  close(fd[READ]);
+  printf(1, "All tests finished successfully. New system calls writecount and setwritecount now functional.\r\n");
 
   // exit
   exit();
