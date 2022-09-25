@@ -503,7 +503,7 @@ int sys_getprocessesinfo(void)
 	{
 		// Get the ith process
 		curproc = &ptable.proc[i];
-		// Skip if unused
+		// Skip if unused; don't know if skipping over ZOMBIE is necessary or even a good idea
 		if((curproc->state == UNUSED) || (curproc->pid == ZOMBIE)) {
 			p->pids[i] = -1;
 			continue;

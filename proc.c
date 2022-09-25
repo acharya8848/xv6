@@ -119,7 +119,8 @@ userinit(void)
 	extern char _binary_initcode_start[], _binary_initcode_size[];
 
 	p = allocproc();
-	
+	// Because this is the first process, set the tickets to 10
+	p->tickets = 10;
 	initproc = p;
 	if((p->pgdir = setupkvm()) == 0)
 		panic("userinit: out of memory?");
@@ -197,6 +198,9 @@ fork(void)
 
 	// Clear %eax so that fork returns 0 in the child.
 	np->tf->eax = 0;
+
+	// Copy the number of tickets from the parent to the child
+	np->tickets = curproc->tickets;
 
 	for(i = 0; i < NOFILE; i++)
 		if(curproc->ofile[i])
