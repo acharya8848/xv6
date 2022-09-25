@@ -469,8 +469,11 @@ sys_pipe(void)
 }
 
 // Lottery Scheduling System Calls
-int settickets(int number)
+int sys_settickets(void)
 {
+	int number = 0;
+	if(argint(0, &number) < 0)
+		return -1;
 	// Get the current process
 	struct proc *p = myproc();
 	if((number < 1) || (number > 100000))
@@ -482,16 +485,21 @@ int settickets(int number)
 	return 0;
 }
 
-int getprocessesinfo(processes_info *p)
+int sys_getprocessesinfo(void)
 {
+	processes_info *p;
+	// Get the argument from userspace
+	if(argptr(0, (char*)&p, sizeof(processes_info)) < 0)
+		return -1;
 	// Read the process table and fill the struct p with information
 	struct proc *curproc;
-	int i;
 	// Check if the pointer is valid
 	if(p == 0)
 		return -1;
+	// Lock the process table
+	acquire(&ptable.lock);
 	// Loop through the process table
-	for(i = 0; i < NPROC; i++)
+	for(int i = 0; i < NPROC; i++)
 	{
 		// Get the ith process
 		curproc = &ptable.proc[i];
@@ -506,6 +514,8 @@ int getprocessesinfo(processes_info *p)
 		p->times_scheduled[i] = curproc->times_scheduled;
 		p->num_processes++;
 	}
+	// Release the lock
+	release(&ptable.lock);
 	// Return success
 	return 0;
 }

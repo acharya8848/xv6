@@ -28,6 +28,8 @@ int sleep(int);
 int uptime(void);
 int yield(void);
 int shutdown(void);
+int settickets(int);
+int getprocessesinfo(processes_info*);
 
 // ulib.c
 int stat(const char*, struct stat*);
