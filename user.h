@@ -1,4 +1,4 @@
-#include "param.h"
+#include "processinfo.h"
 struct stat;
 struct rtcdate;
 
