@@ -6,6 +6,7 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
+#include "date.h"
 
 static struct proc *initproc;
 
@@ -330,7 +331,7 @@ scheduler(void)
 	struct proc *p;
 	struct cpu *c = mycpu();
 	c->proc = 0;
-	
+
 	for(;;){
 		// Enable interrupts on this processor.
 		sti();
