@@ -503,6 +503,8 @@ int sys_getprocessesinfo(void)
 		return -1;
 	// Lock the process table
 	acquire(&ptable.lock);
+	// Zero memory for the number of processes
+	p->num_processes = 0;
 	// Loop through the process table
 	for(int i = 0; i < NPROC; i++)
 	{
