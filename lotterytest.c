@@ -1,6 +1,6 @@
 #include "types.h"
 #include "param.h"
-#include "processinfo.h"
+#include "processesinfo.h"
 #include "user.h"
 
 #define MAX_CHILDREN 32

@@ -1,5 +1,5 @@
-#ifndef PROCESSINFO_H_
-#define PROCESSINFO_H_
+#ifndef PROCESSESINFO_H_
+#define PROCESSESINFO_H_
 
 #include "param.h"
 
@@ -11,4 +11,4 @@ struct processes_info{
 	int tickets[NPROC];				// tickets = number of tickets set by settickets()
 };
 
-#endif /* PROCESSINFO_H_ */
+#endif /* PROCESSESINFO_H_ */

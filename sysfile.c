@@ -17,7 +17,7 @@
 #include "fcntl.h"
 
 // Lottery scheduling
-#include "processinfo.h"
+#include "processesinfo.h"
 
 // Count the write
 int write_count = 0;
