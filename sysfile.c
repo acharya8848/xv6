@@ -494,7 +494,7 @@ int sys_getprocessesinfo(void)
 {
 	processes_info *p;
 	// Get the argument from userspace
-	if(argptr(0, (char*)&p, sizeof(processes_info)) < 0)
+	if(argptr(0, (char **)&p, sizeof(processes_info)) < 0)
 		return -1;
 	// Read the process table and fill the struct p with information
 	struct proc *curproc;
