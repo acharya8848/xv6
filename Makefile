@@ -191,7 +191,7 @@ UPROGS=\
 	_wc\
 	_zombie\
 	_shutdown\
-	_lcg_parkmiller\
+	_lcg_parkmiller_c\
 	_lotterytest\
 	_processlist\
 	_timewithtickets\
