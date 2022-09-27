@@ -316,6 +316,9 @@ wait(void)
 	}
 }
 
+// Random number generator
+unsigned random_at_most(unsigned);
+
 //PAGEBREAK: 42
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
@@ -332,15 +335,35 @@ scheduler(void)
 	struct cpu *c = mycpu();
 	c->proc = 0;
 
+	unsigned total_tickets, count;
+
 	for(;;){
 		// Enable interrupts on this processor.
 		sti();
 
+		total_tickets = 0;
+		count = 0;
+
 		// Loop over process table looking for process to run.
 		acquire(&ptable.lock);
+
+		// Calculate the total number of tickets
+		for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+			total_tickets+= p->tickets;
+		}
+
+		// Choose a random ticket between 1 and total_tickets; guaranteed uniformity
+		unsigned winning_ticket = random_at_most(total_tickets);
 		for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
 			if(p->state != RUNNABLE)
 				continue;
+			else if ((count + p->tickets) < winning_ticket) {
+				count+= p->tickets;
+				continue;
+			}
+
+			// Increase the times scheduled counter
+			p->times_scheduled++;
 
 			// Switch to chosen process.  It is the process's job
 			// to release ptable.lock and then reacquire it

@@ -8,7 +8,7 @@ OBJS = \
 	ioapic.o\
 	kalloc.o\
 	kbd.o\
-        kshutdown.o\
+	kshutdown.o\
 	lapic.o\
 	log.o\
 	main.o\
@@ -28,6 +28,7 @@ OBJS = \
 	uart.o\
 	vectors.o\
 	vm.o\
+	lcg_parkmiller_c.o\
 
 # Cross-compiling (e.g., on Mac OS X)
 # TOOLPREFIX = i386-jos-elf
@@ -191,7 +192,6 @@ UPROGS=\
 	_wc\
 	_zombie\
 	_shutdown\
-	_lcg_parkmiller_c\
 	_lotterytest\
 	_processlist\
 	_timewithtickets\
