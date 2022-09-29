@@ -127,6 +127,8 @@ userinit(void)
 	p = allocproc();
 	// Because this is the first process, set the tickets to 10
 	p->tickets = 10;
+	// Set times scheduled to 0
+	p->times_scheduled = 0;
 	initproc = p;
 	if((p->pgdir = setupkvm()) == 0)
 		panic("userinit: out of memory?");
@@ -207,6 +209,8 @@ fork(void)
 
 	// Copy the number of tickets from the parent to the child
 	np->tickets = curproc->tickets;
+	// Set times scheduled to 0
+	np->times_scheduled = 0;
 
 	for(i = 0; i < NOFILE; i++)
 		if(curproc->ofile[i])
@@ -357,7 +361,7 @@ scheduler(void)
 		for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
 			if(p->state != RUNNABLE)
 				continue;
-			else if ((count > winning_ticket) || ((count + p->tickets) < winning_ticket)) {
+			if ((count > winning_ticket) || ((count + p->tickets) < winning_ticket)) {
 				count+= p->tickets;
 				continue;
 			}
