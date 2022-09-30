@@ -325,6 +325,7 @@ wait(void)
 // Assumes 0 <= max <= RAND_MAX
 // Returns in the closed interval [0, max]
 unsigned next_random(void);
+#define RAND_MAX ((1u << 31u) - 1u)
 unsigned random_at_most(unsigned max) {
 	unsigned long
 		// max <= RAND_MAX < ULONG_MAX, so this is okay.
