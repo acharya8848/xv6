@@ -38,24 +38,3 @@ unsigned next_random() {
 	return lcg_parkmiller(&random_seed);
 }
 
-//https://stackoverflow.com/questions/2509679/how-to-generate-a-random-integer-number-from-within-a-range#6852396
-// Assumes 0 <= max <= RAND_MAX
-// Returns in the closed interval [0, max]
-unsigned random_at_most(unsigned max) {
-	unsigned long
-		// max <= RAND_MAX < ULONG_MAX, so this is okay.
-		num_bins = (unsigned long) max + 1,
-		num_rand = (unsigned long) RAND_MAX + 1,
-		bin_size = num_rand / num_bins,
-		defect   = num_rand % num_bins;
-
-	unsigned x;
-	do {
-	x = next_random();
-	}
-	// This is carefully written not to overflow
-	while (num_rand - defect <= (unsigned long)x);
-
-	// Truncated division is intentional
-	return (unsigned) x/bin_size;
-}
