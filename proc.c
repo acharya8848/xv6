@@ -324,6 +324,7 @@ wait(void)
 //https://stackoverflow.com/questions/2509679/how-to-generate-a-random-integer-number-from-within-a-range#6852396
 // Assumes 0 <= max <= RAND_MAX
 // Returns in the closed interval [0, max]
+unsigned next_random(void());
 unsigned random_at_most(unsigned max) {
 	unsigned long
 		// max <= RAND_MAX < ULONG_MAX, so this is okay.
