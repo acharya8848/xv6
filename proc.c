@@ -353,20 +353,23 @@ scheduler(void)
 
 		// Calculate the total number of tickets
 		for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-			total_tickets+= p->tickets;
+			if (p->state == RUNNABLE)
+				total_tickets+= p->tickets;
+		}
+
+		if (total_tickets > 0) {
+			total_tickets-= 1;
 		}
 
 		// Choose a random ticket between 1 and total_tickets; guaranteed uniformity
-		unsigned winning_ticket = random_at_most(total_tickets);
+		unsigned winning_ticket = random_at_most(total_tickets) + 1;
 		for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
 			if(p->state != RUNNABLE)
 				continue;
-			if ((count > winning_ticket) || ((count + p->tickets) < winning_ticket)) {
+			else if(((count + p->tickets) < winning_ticket)) {
 				count+= p->tickets;
 				continue;
 			}
-
-			count+= p->tickets;
 
 			// Increase the times scheduled counter
 			p->times_scheduled++;
@@ -384,6 +387,7 @@ scheduler(void)
 			// Process is done running for now.
 			// It should have changed its p->state before coming back.
 			c->proc = 0;
+			break;
 		}
 		release(&ptable.lock);
 
