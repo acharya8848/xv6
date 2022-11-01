@@ -111,6 +111,7 @@ extern int sys_settickets(void);
 extern int sys_getprocessesinfo(void);
 extern int sys_getpagetableentry(void);
 extern int sys_isphysicalpagefree(void);
+extern int sys_dumppagetable(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -143,6 +144,7 @@ static int (*syscalls[])(void) = {
 // Paging system calls
 [SYS_getpagetableentry] sys_getpagetableentry,
 [SYS_isphysicalpagefree] sys_isphysicalpagefree,
+[SYS_dumppagetable] sys_dumppagetable,
 };
 
 void

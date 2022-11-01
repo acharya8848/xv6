@@ -35,6 +35,8 @@ int getprocessesinfo(struct processes_info*);
 int getpagetableentry(int, int);
 // int isphysicalpagefree(int ppn)
 int isphysicalpagefree(int);
+// int dumppagetable(int pid)
+int dumppagetable(int);
 
 // ulib.c
 int stat(const char*, struct stat*);

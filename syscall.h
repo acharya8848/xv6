@@ -29,3 +29,4 @@
 // Paging system calls
 #define SYS_getpagetableentry 28
 #define SYS_isphysicalpagefree 29
+#define SYS_dumppagetable 30

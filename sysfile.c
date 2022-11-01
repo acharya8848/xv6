@@ -527,6 +527,9 @@ int sys_getprocessesinfo(void)
 	return 0;
 }
 
+// Walk the page table to find the physical address of the virtual address
+extern pte_t * walkpgdir(pde_t *pgdir, const void *va, int alloc);
+
 // Paging system calls
 int sys_getpagetableentry(void) {
 	// Get the arguments from userspace
@@ -534,9 +537,41 @@ int sys_getpagetableentry(void) {
 	if(argint(0, pid) < 0 || argint(1, address) < 0) {
 		return -1;
 	}
-	// Get the process
-	struct proc *p = findproc(*pid);
+	struct proc *p;
+	pte_t *pte;
+	// Acquire the ptable lock
+	acquire(&ptable.lock);
+	// Loop through the process table
+	for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+		// Check if the process is the one we're looking for
+		if(p->pid == *pid) {
+			// Release the lock
+			release(&ptable.lock);
+			// Get the page table entry
+			if ((pte = walkpgdir(p->pgdir, (void *)*address, 0)) == 0) {
+				// Invalid virtual address (not mapped)
+				return 0;
+			} else {
+				// Return the last-level page table entry
+				return *pte;
+			}
+		}
+	}
+	// Release the lock
+	release(&ptable.lock);
+	// Failure; pid doesn't exist
+	return 0;
 }
+
+extern struct run {
+  struct run *next;
+};
+
+extern struct {
+  struct spinlock lock;
+  int use_lock;
+  struct run *freelist;
+} kmem;
 
 int sys_isphysicalpagefree(void) {
 	// Get the argument from userspace
@@ -544,6 +579,89 @@ int sys_isphysicalpagefree(void) {
 	if(argint(0, page) < 0) {
 		return -1;
 	}
-	// Check if the page is in the free list for kalloc
-	struct run *r;
+	// Lock if necessary
+	if(kmem.use_lock)
+		acquire(&kmem.lock);
+	// Check if the page is free by checking the free list in kalloc.c
+	struct run *r = kmem.freelist;
+	while(r != 0) {
+		if((int)r == *page) {
+			// Release the lock
+			if(kmem.use_lock)
+				release(&kmem.lock);
+			// Page is free
+			return 1;
+		}
+		r = r->next;
+	}
+	// Release the lock
+	if(kmem.use_lock)
+		release(&kmem.lock);
+	// Page is not free
+	return 0;
+}
+
+int sys_dumppagetable(void) {
+	// Get the argument from userspace
+	int *pid;
+	if(argint(0, pid) < 0) {
+		return -1;
+	}
+	struct proc *p;
+	pte_t *pte;
+	// Acquire the ptable lock
+	acquire(&ptable.lock);
+	// Loop through the process table
+	for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+		// Check if the process is the one we're looking for
+		if(p->pid == *pid) {
+			// Release the lock
+			release(&ptable.lock);
+			// Start the printing
+			cprintf("Page table for process %d:\r\n", *pid);
+			cprintf("==========================================================================\r\n");
+			cprintf("Virtual Address\t\tPhysical Address\t\tWritable\t\tUser Mode\r\n");
+			// Loop through the page table
+			for(int i = 0; i < p->sz; i += PGSIZE) {
+				// Get the page table entry
+				if((pte = walkpgdir(p->pgdir, (void*)i, 0)) == 0) {
+					// The walk failed for a valid virtual address
+					// Quitting with -1 should be fine, but I'm not doing it
+					cprintf("%d !!! WALKPAGE FAILED !!!\r", i);
+					continue;
+				} else if (!(*pte & PTE_P)) {
+					// If the page isn't present, skip it
+					continue;
+				} else {
+					// At this point, we have a valid page table entry
+					// Print the virtual address
+					cprintf("%d\t\t", i);
+					// Print the physical address
+					cprintf("%d\t\t", PTE_ADDR(*pte));
+					// Print the writable bit
+					if (*pte & PTE_W) {
+						cprintf("Yes\t\t");
+					} else {
+						cprintf("No\t\t");
+					}
+					// Print the user mode bit
+					if (*pte & PTE_U) {
+						cprintf("Yes\r\n");
+					} else {
+						cprintf("No\r\n");
+					}
+				}
+			}
+			cprintf("==========================================================================\r\n");
+			// Return success
+			return 0;
+		} else {
+			// Release the lock
+			release(&ptable.lock);
+			// Print an error message
+			cprintf("Error: process %d does not exist\r\n", *pid);
+			// Failure; pid doesn't exist
+			return -1;
+		}
+	}
 }
