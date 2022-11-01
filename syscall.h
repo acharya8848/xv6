@@ -26,3 +26,6 @@
 #define SYS_shutdown  23
 #define SYS_settickets 26
 #define SYS_getprocessesinfo 27
+// Paging system calls
+#define SYS_getpagetableentry 28
+#define SYS_isphysicalpagefree 29

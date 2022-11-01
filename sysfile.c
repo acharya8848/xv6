@@ -526,3 +526,24 @@ int sys_getprocessesinfo(void)
 	// Return success
 	return 0;
 }
+
+// Paging system calls
+int sys_getpagetableentry(void) {
+	// Get the arguments from userspace
+	int *pid, *address;
+	if(argint(0, pid) < 0 || argint(1, address) < 0) {
+		return -1;
+	}
+	// Get the process
+	struct proc *p = findproc(*pid);
+}
+
+int sys_isphysicalpagefree(void) {
+	// Get the argument from userspace
+	int *page;
+	if(argint(0, page) < 0) {
+		return -1;
+	}
+	// Check if the page is in the free list for kalloc
+	struct run *r;
+}

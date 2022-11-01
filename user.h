@@ -30,6 +30,11 @@ int yield(void);
 int shutdown(void);
 int settickets(int);
 int getprocessesinfo(struct processes_info*);
+// Paging system calls
+// int getpagetableentry(int pid, int address)
+int getpagetableentry(int, int);
+// int isphysicalpagefree(int ppn)
+int isphysicalpagefree(int);
 
 // ulib.c
 int stat(const char*, struct stat*);
