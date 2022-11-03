@@ -544,7 +544,7 @@ int sys_getpagetableentry(void) {
 	// Loop through the process table
 	for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
 		// Check if the process is the one we're looking for
-		if(p->pid == *pid) {
+		if((p->pid == *pid) && (p->state != UNUSED)) {
 			// Release the lock
 			release(&ptable.lock);
 			// Get the page table entry
@@ -564,13 +564,13 @@ int sys_getpagetableentry(void) {
 }
 
 extern struct run {
-  struct run *next;
+	struct run *next;
 };
 
 extern struct {
-  struct spinlock lock;
-  int use_lock;
-  struct run *freelist;
+	struct spinlock lock;
+	int use_lock;
+	struct run *freelist;
 } kmem;
 
 int sys_isphysicalpagefree(void) {
@@ -622,7 +622,7 @@ int sys_dumppagetable(void) {
 			cprintf("==========================================================================\r\n");
 			cprintf("Virtual Address\t\tPhysical Address\t\tWritable\t\tUser Mode\r\n");
 			// Loop through the page table
-			for(int i = 0; i < p->sz; i += PGSIZE) {
+			for(uint i = 0; i < p->sz; i += PGSIZE) {
 				// Get the page table entry
 				if((pte = walkpgdir(p->pgdir, (void*)i, 0)) == 0) {
 					// The walk failed for a valid virtual address
