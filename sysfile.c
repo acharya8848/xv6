@@ -528,12 +528,12 @@ int sys_getprocessesinfo(void)
 }
 
 // Walk the page table to find the physical address of the virtual address
-extern pte_t * walkpgdir(pde_t *pgdir, const void *va, int alloc);
+extern pte_t * walkpgdir_wrap(pde_t *pgdir, const void *va, int alloc);
 
 // Paging system calls
 int sys_getpagetableentry(void) {
 	// Get the arguments from userspace
-	int *pid, *address;
+	int *pid = NULL, *address = NULL;
 	if(argint(0, pid) < 0 || argint(1, address) < 0) {
 		return -1;
 	}
@@ -548,7 +548,7 @@ int sys_getpagetableentry(void) {
 			// Release the lock
 			release(&ptable.lock);
 			// Get the page table entry
-			if ((pte = walkpgdir(p->pgdir, (void *)*address, 0)) == 0) {
+			if ((pte = walkpgdir_wrap(p->pgdir, (void *)*address, 0)) == 0) {
 				// Invalid virtual address (not mapped)
 				return 0;
 			} else {
@@ -563,10 +563,6 @@ int sys_getpagetableentry(void) {
 	return 0;
 }
 
-extern struct run {
-	struct run *next;
-};
-
 extern struct {
 	struct spinlock lock;
 	int use_lock;
@@ -575,7 +571,7 @@ extern struct {
 
 int sys_isphysicalpagefree(void) {
 	// Get the argument from userspace
-	int *page;
+	int *page = NULL;
 	if(argint(0, page) < 0) {
 		return -1;
 	}
@@ -603,7 +599,7 @@ int sys_isphysicalpagefree(void) {
 
 int sys_dumppagetable(void) {
 	// Get the argument from userspace
-	int *pid;
+	int *pid = NULL;
 	if(argint(0, pid) < 0) {
 		return -1;
 	}
@@ -624,7 +620,7 @@ int sys_dumppagetable(void) {
 			// Loop through the page table
 			for(uint i = 0; i < p->sz; i += PGSIZE) {
 				// Get the page table entry
-				if((pte = walkpgdir(p->pgdir, (void*)i, 0)) == 0) {
+				if((pte = walkpgdir_wrap(p->pgdir, (void*)i, 0)) == 0) {
 					// The walk failed for a valid virtual address
 					// Quitting with -1 should be fine, but I'm not doing it
 					cprintf("%d !!! WALKPAGE FAILED !!!\r", i);
@@ -655,13 +651,12 @@ int sys_dumppagetable(void) {
 			cprintf("==========================================================================\r\n");
 			// Return success
 			return 0;
-		} else {
-			// Release the lock
-			release(&ptable.lock);
-			// Print an error message
-			cprintf("Error: process %d does not exist\r\n", *pid);
-			// Failure; pid doesn't exist
-			return -1;
 		}
 	}
+	// Release the lock
+	release(&ptable.lock);
+	// Print an error message
+	cprintf("Error: process %d does not exist\r\n", *pid);
+	// Failure; pid doesn't exist
+	return -1;
 }
