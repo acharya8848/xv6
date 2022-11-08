@@ -506,7 +506,8 @@ int sys_getprocessesinfo(void)
 	// Zero memory for the number of processes
 	p->num_processes = 0;
 	// Loop through the process table
-	for(int i = 0; i < NPROC; i++)
+	int i;
+	for(i = 0; i < NPROC; i++)
 	{
 		// Get the ith process
 		curproc = &ptable.proc[i];
@@ -533,28 +534,27 @@ extern pte_t * walkpgdir_wrap(pde_t *pgdir, const void *va, int alloc);
 // Paging system calls
 int sys_getpagetableentry(void) {
 	// Get the arguments from userspace
-	int *pid = NULL, *address = NULL;
-	if(argint(0, pid) < 0 || argint(1, address) < 0) {
+	int pid = 0;
+	uint address = 0;
+	if(argint(0, &pid) < 0 || argint(1, (int *)&address) < 0) {
 		return -1;
 	}
 	struct proc *p;
 	pte_t *pte;
+	// cprintf("pid: %d, address: %d\r\n", pid, address);
 	// Acquire the ptable lock
 	acquire(&ptable.lock);
+	// cprintf("acquired lock\r\n");
 	// Loop through the process table
 	for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
 		// Check if the process is the one we're looking for
-		if((p->pid == *pid) && (p->state != UNUSED)) {
+		if((p->pid == pid) && (p->state != UNUSED)) {
 			// Release the lock
 			release(&ptable.lock);
 			// Get the page table entry
-			if ((pte = walkpgdir_wrap(p->pgdir, (void *)*address, 0)) == 0) {
-				// Invalid virtual address (not mapped)
-				return 0;
-			} else {
-				// Return the last-level page table entry
-				return *pte;
-			}
+			pte = walkpgdir_wrap(p->pgdir, (void *)address, 0);
+			// cprintf("pte: %d", *pte);
+			return *pte;
 		}
 	}
 	// Release the lock
@@ -614,16 +614,17 @@ int sys_dumppagetable(void) {
 			// Release the lock
 			release(&ptable.lock);
 			// Start the printing
-			cprintf("Page table for process %d:\r\n", *pid);
-			cprintf("==========================================================================\r\n");
-			cprintf("Virtual Address\t\tPhysical Address\t\tWritable\t\tUser Mode\r\n");
+			cprintf("START PAGE TABLE; PID %d:\r\n", *pid);
+			cprintf("===================================================================================================\r\n");
+			cprintf("Page Table Entry\t\tPhysical Address\t\tWritable\t\tUser Mode\r\n");
 			// Loop through the page table
-			for(uint i = 0; i < p->sz; i += PGSIZE) {
+			uint i;
+			for(i = 0; i < p->sz; i += PGSIZE) {
 				// Get the page table entry
 				if((pte = walkpgdir_wrap(p->pgdir, (void*)i, 0)) == 0) {
 					// The walk failed for a valid virtual address
 					// Quitting with -1 should be fine, but I'm not doing it
-					cprintf("%d !!! WALKPAGE FAILED !!!\r", i);
+					cprintf("%d !!! WALKPAGE FAILED !!!\r", (int)i/PGSIZE);
 					continue;
 				} else if (!(*pte & PTE_P)) {
 					// If the page isn't present, skip it
@@ -631,14 +632,14 @@ int sys_dumppagetable(void) {
 				} else {
 					// At this point, we have a valid page table entry
 					// Print the virtual address
-					cprintf("%d\t\t", i);
+					cprintf("   %d\t\t", *pte);
 					// Print the physical address
-					cprintf("%d\t\t", PTE_ADDR(*pte));
+					cprintf("\t   %d\t\t", PTE_ADDR(*pte));
 					// Print the writable bit
 					if (*pte & PTE_W) {
-						cprintf("Yes\t\t");
+						cprintf("\tYes\t\t\t");
 					} else {
-						cprintf("No\t\t");
+						cprintf("\tNo\t\t\t");
 					}
 					// Print the user mode bit
 					if (*pte & PTE_U) {
@@ -648,7 +649,8 @@ int sys_dumppagetable(void) {
 					}
 				}
 			}
-			cprintf("==========================================================================\r\n");
+			cprintf("===================================================================================================\r\n");
+			cprintf("END PAGE TABLE; PID %d:\r\n", *pid);
 			// Return success
 			return 0;
 		}
@@ -656,7 +658,7 @@ int sys_dumppagetable(void) {
 	// Release the lock
 	release(&ptable.lock);
 	// Print an error message
-	cprintf("Error: process %d does not exist\r\n", *pid);
+	cprintf("Error: PID %d does not exist\r\n", *pid);
 	// Failure; pid doesn't exist
 	return -1;
 }

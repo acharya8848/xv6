@@ -31,8 +31,8 @@ int shutdown(void);
 int settickets(int);
 int getprocessesinfo(struct processes_info*);
 // Paging system calls
-// int getpagetableentry(int pid, int address)
-int getpagetableentry(int, int);
+// int getpagetableentry(int pid, uint address)
+int getpagetableentry(int, uint);
 // int isphysicalpagefree(int ppn)
 int isphysicalpagefree(int);
 // int dumppagetable(int pid)
