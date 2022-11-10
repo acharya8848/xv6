@@ -69,23 +69,25 @@ walkpgdir_wrap(pde_t *pgdir, const void *va, int alloc)
 static int
 mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
 {
-  char *a, *last;
-  pte_t *pte;
+	char *a, *last;
+	pte_t *pte;
 
-  a = (char*)PGROUNDDOWN((uint)va);
-  last = (char*)PGROUNDDOWN(((uint)va) + size - 1);
-  for(;;){
-    if((pte = walkpgdir(pgdir, a, 1)) == 0)
-      return -1;
-    if(*pte & PTE_P)
-      panic("remap");
-    *pte = pa | perm | PTE_P;
-    if(a == last)
-      break;
-    a += PGSIZE;
-    pa += PGSIZE;
-  }
-  return 0;
+	a = (char*)PGROUNDDOWN((uint)va);
+	last = (char*)PGROUNDDOWN(((uint)va) + size - 1);
+	for(;;){
+		if((pte = walkpgdir(pgdir, a, 1)) == 0)
+			return -1;
+		// Remapping a pte to a different physical address is a needed feature
+		// now that copy-on-write is implemented.
+		// if(*pte & PTE_P)
+		//   panic("remap");
+		*pte = pa | perm | PTE_P;
+		if(a == last)
+			break;
+		a += PGSIZE;
+		pa += PGSIZE;
+	}
+	return 0;
 }
 
 // There is one page table per process, plus one that's used when
@@ -324,33 +326,40 @@ clearpteu(pde_t *pgdir, char *uva)
 pde_t*
 copyuvm(pde_t *pgdir, uint sz)
 {
-  pde_t *d;
-  pte_t *pte;
-  uint pa, i, flags;
-  char *mem;
+	pde_t *d;
+	pte_t *pte;
+	uint pa, i, flags;
+	// char *mem;
 
-  if((d = setupkvm()) == 0)
-    return 0;
-  for(i = 0; i < sz; i += PGSIZE){
-    if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
-      panic("copyuvm: pte should exist");
-    if(!(*pte & PTE_P))
-      panic("copyuvm: page not present");
-    pa = PTE_ADDR(*pte);
-    flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0)
-      goto bad;
-    memmove(mem, (char*)P2V(pa), PGSIZE);
-    if(mappages(d, (void*)i, PGSIZE, V2P(mem), flags) < 0) {
-      kfree(mem);
-      goto bad;
-    }
-  }
-  return d;
+	// Each process has its own page table
+	if((d = setupkvm()) == 0) // This is creating the new page table for the child process
+		return 0;
+	for(i = 0; i < sz; i += PGSIZE){
+		if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
+			panic("copyuvm: pte should exist");
+		if(!(*pte & PTE_P))
+			panic("copyuvm: page not present");
+		pa = PTE_ADDR(*pte);
+		flags = PTE_FLAGS(*pte); // Keep the parent process's flags
+		// Old code
+		// if((mem = kalloc()) == 0)
+		// 	goto bad;
+		// memmove(mem, (char*)P2V(pa), PGSIZE);
+		// New code
+		flags&= ~PTE_W; // Make the child's page read-only
+		flags|= PTE_CoW; // Turn on copy-on-write for the child
+		// if(mappages(d, (void*)i, PGSIZE, V2P(mem), flags) < 0) {
+		// Map the parent's physical page to the child's page directory
+		if(mappages(d, (void*)i, PGSIZE, pa, flags) < 0) {
+			// kfree(mem);
+			goto bad;
+		}
+	}
+	return d;
 
-bad:
-  freevm(d);
-  return 0;
+	bad:
+	freevm(d);
+	return 0;
 }
 
 //PAGEBREAK!
@@ -392,6 +401,94 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
     va = va0 + PGSIZE;
   }
   return 0;
+}
+
+// Page fault handler.
+void
+page_fault_handler(void)
+{
+	// Get the current process
+	struct proc *curproc = myproc();
+	// Get the address that caused the fault.
+	uint fault_va = rcr2();
+	// Check if the virtual address is within range
+	if (fault_va >= curproc->sz) {
+		// The virtual address is out of range.
+		cprintf("Page fault: virtual address out of range");
+		// Shred the process
+		curproc->killed = 1;
+		// Return to the trap handler
+		return;
+	}
+	// Get the page table entry
+	pte_t *pte;
+	if ((pte = walkpgdir(curproc->pgdir, (void *)fault_va, 0)) == 0) { // Dynamic paging
+		// The page table entry does not exist which means it was lazily allocated
+		// Allocate a page
+		char *mem;
+		if ((mem = kalloc()) == 0) {
+			// There is no memory left
+			cprintf("Page fault: out of memory");
+			// Shred the process
+			curproc->killed = 1;
+			// Return to the trap handler
+			return;
+		}
+		// Map the page to the virtual address
+		if (mappages(curproc->pgdir, (void *)fault_va, PGSIZE, V2P(mem), PTE_W|PTE_U) < 0) {
+			// There was an error mapping the page
+			cprintf("Page fault: error mapping page");
+			// Shred the process
+			curproc->killed = 1;
+			// Return to the trap handler
+			return;
+		}
+		// Return to the trap handler
+		return;
+	} else if ((PTE_FLAGS(*pte) & PTE_P) && (PTE_FLAGS(*pte) & PTE_U)) { // copy-on-write
+		// The page table entry is present, and user accessible.
+		// But because the fault occurred, it must not be writable.
+		if (PTE_FLAGS(*pte) & PTE_CoW) { // Copy-on-write implementation
+			// Because copy-on-write is enabled, we need to copy the contents of the page
+			// to a new page, and then map the new page to the virtual address.
+			// Get the physical address of the page
+			uint pa = PTE_ADDR(*pte), flags = PTE_FLAGS(*pte);
+			// Now that we are allocating a new physical page, we need to disable copy-on-write
+			flags&= ~PTE_CoW;
+			// We also need to enable write permissions
+			flags|= PTE_W;
+			// Allocate a new page
+			char *mem;
+			if ((mem = kalloc()) == 0) {
+				// We could not allocate a new page.
+				cprintf("Page fault: could not allocate new page");
+				// Shred the process
+				curproc->killed = 1;
+				// Return to the trap handler
+				return;
+			}
+			// Copy the contents of the old page to the new page
+			memmove(mem, (char *)P2V(pa), PGSIZE);
+			// Remap the new physical page to the old virtual address
+			if (mappages(curproc->pgdir, (void *)fault_va, PGSIZE, V2P(mem), flags) < 0) {
+				// We could not map the new page to the virtual address.
+				cprintf("Page fault: could not map new page");
+				// Shred the process
+				curproc->killed = 1;
+				// Return to the trap handler
+				return;
+			}
+		} else {
+			// We're not supposed to get to this point
+			// A page fault happened on a page that is present, user accessible and has copy-on-write disabled
+			// Something has to have gone very very wrong for this to happen.
+			cprintf("Page fault: page is present, user accessible and copy-on-write disabled. Unexpected page fault.");
+			// Shred the process
+			curproc->killed = 1;
+			// Return to the trap handler
+			return;
+		}
+	}
 }
 
 //PAGEBREAK!
