@@ -162,18 +162,19 @@ userinit(void)
 int
 growproc(int n)
 {
-	uint sz;
+	// uint sz;
 	struct proc *curproc = myproc();
 
-	sz = curproc->sz;
-	if(n > 0){
-		if((sz = allocuvm(curproc->pgdir, sz, sz + n)) == 0)
-		return -1;
-	} else if(n < 0){
-		if((sz = deallocuvm(curproc->pgdir, sz, sz + n)) == 0)
-		return -1;
-	}
-	curproc->sz = sz;
+	// sz = curproc->sz;
+	// if(n > 0){
+	// 	if((sz = allocuvm(curproc->pgdir, sz, sz + n)) == 0)
+	// 	return -1;
+	// } else if(n < 0){
+	// 	if((sz = deallocuvm(curproc->pgdir, sz, sz + n)) == 0)
+	// 	return -1;
+	// }
+	curproc->sz+= n;
+	cprintf("growproc: pid %d, increased by %d, new size %d\n", curproc->pid, n, curproc->sz);
 	switchuvm(curproc);
 	return 0;
 }
@@ -207,14 +208,9 @@ fork(void)
 	// Clear %eax so that fork returns 0 in the child.
 	np->tf->eax = 0;
 
-	// Copy the number of tickets from the parent to the child
-	np->tickets = curproc->tickets;
-	// Set times scheduled to 0
-	np->times_scheduled = 0;
-
 	for(i = 0; i < NOFILE; i++)
 		if(curproc->ofile[i])
-		np->ofile[i] = filedup(curproc->ofile[i]);
+			np->ofile[i] = filedup(curproc->ofile[i]);
 	np->cwd = idup(curproc->cwd);
 
 	safestrcpy(np->name, curproc->name, sizeof(curproc->name));
@@ -226,6 +222,8 @@ fork(void)
 	np->state = RUNNABLE;
 
 	release(&ptable.lock);
+
+	cprintf("fork: new process pid = %d\n", pid);
 
 	return pid;
 }
@@ -284,35 +282,36 @@ wait(void)
 	struct proc *p;
 	int havekids, pid;
 	struct proc *curproc = myproc();
-	
+
 	acquire(&ptable.lock);
 	for(;;){
 		// Scan through table looking for exited children.
 		havekids = 0;
 		for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-		if(p->parent != curproc)
-			continue;
-		havekids = 1;
-		if(p->state == ZOMBIE){
-			// Found one.
-			pid = p->pid;
-			kfree(p->kstack);
-			p->kstack = 0;
-			freevm(p->pgdir);
-			p->pid = 0;
-			p->parent = 0;
-			p->name[0] = 0;
-			p->killed = 0;
-			p->state = UNUSED;
-			release(&ptable.lock);
-			return pid;
-		}
+			if(p->parent != curproc)
+				continue;
+			havekids = 1;
+			if(p->state == ZOMBIE){
+				cprintf("wait: found a zombie at pid %d\n", p->pid);
+				// Found one.
+				pid = p->pid;
+				kfree(p->kstack);
+				p->kstack = 0;
+				freevm(p->pgdir);
+				p->pid = 0;
+				p->parent = 0;
+				p->name[0] = 0;
+				p->killed = 0;
+				p->state = UNUSED;
+				release(&ptable.lock);
+				return pid;
+			}
 		}
 
 		// No point waiting if we don't have any children.
 		if(!havekids || curproc->killed){
-		release(&ptable.lock);
-		return -1;
+			release(&ptable.lock);
+			return -1;
 		}
 
 		// Wait for children to exit.  (See wakeup1 call in proc_exit.)
@@ -353,7 +352,6 @@ unsigned random_at_most(unsigned max) {
 //  - swtch to start running that process
 //  - eventually that process transfers control
 //      via swtch back to the scheduler.
-// This is where the scheduler is!!!
 void
 scheduler(void)
 {
@@ -361,40 +359,15 @@ scheduler(void)
 	struct cpu *c = mycpu();
 	c->proc = 0;
 
-	unsigned total_tickets, count;
-
 	for(;;){
 		// Enable interrupts on this processor.
 		sti();
 
-		total_tickets = 0;
-		count = 0;
-
 		// Loop over process table looking for process to run.
 		acquire(&ptable.lock);
-
-		// Calculate the total number of tickets
-		for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-			if (p->state == RUNNABLE)
-				total_tickets+= p->tickets;
-		}
-
-		if (total_tickets > 0) {
-			total_tickets-= 1;
-		}
-
-		// Choose a random ticket between 1 and total_tickets; guaranteed uniformity
-		unsigned winning_ticket = random_at_most(total_tickets) + 1;
 		for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
 			if(p->state != RUNNABLE)
 				continue;
-			else if(((count + p->tickets) < winning_ticket)) {
-				count+= p->tickets;
-				continue;
-			}
-
-			// Increase the times scheduled counter
-			p->times_scheduled++;
 
 			// Switch to chosen process.  It is the process's job
 			// to release ptable.lock and then reacquire it
@@ -409,10 +382,8 @@ scheduler(void)
 			// Process is done running for now.
 			// It should have changed its p->state before coming back.
 			c->proc = 0;
-			break;
 		}
 		release(&ptable.lock);
-
 	}
 }
 
