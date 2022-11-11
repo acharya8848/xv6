@@ -69,18 +69,20 @@ walkpgdir_wrap(pde_t *pgdir, const void *va, int alloc)
 static int
 mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
 {
+	cprintf("manpages called\n");
 	char *a, *last;
-	pte_t *pte;
+	pte_t *pte; 
 
 	a = (char*)PGROUNDDOWN((uint)va);
 	last = (char*)PGROUNDDOWN(((uint)va) + size - 1);
+	cprintf("a: %x, last: %x\n", a, last);
 	for(;;){
 		if((pte = walkpgdir(pgdir, a, 1)) == 0)
 			return -1;
 		// Remapping a pte to a different physical address is a needed feature
 		// now that copy-on-write is implemented.
-		// if(*pte & PTE_P)
-		//   panic("remap");
+		if(*pte & PTE_P)
+		  panic("remap");
 		*pte = pa | perm | PTE_P;
 		if(a == last)
 			break;
@@ -129,21 +131,22 @@ static struct kmap {
 pde_t*
 setupkvm(void)
 {
-  pde_t *pgdir;
-  struct kmap *k;
+	cprintf("setupkvm called\n");
+	pde_t *pgdir;
+	struct kmap *k;
 
-  if((pgdir = (pde_t*)kalloc()) == 0)
-    return 0;
-  memset(pgdir, 0, PGSIZE);
-  if (P2V(PHYSTOP) > (void*)DEVSPACE)
-    panic("PHYSTOP too high");
-  for(k = kmap; k < &kmap[NELEM(kmap)]; k++)
-    if(mappages(pgdir, k->virt, k->phys_end - k->phys_start,
-                (uint)k->phys_start, k->perm) < 0) {
-      freevm(pgdir);
-      return 0;
-    }
-  return pgdir;
+	if((pgdir = (pde_t*)kalloc()) == 0)
+		return 0;
+	memset(pgdir, 0, PGSIZE);
+	if (P2V(PHYSTOP) > (void*)DEVSPACE)
+		panic("PHYSTOP too high");
+	for(k = kmap; k < &kmap[NELEM(kmap)]; k++)
+		// cprintf("setupkvm: calling mappages\n");
+		if(mappages(pgdir, k->virt, k->phys_end - k->phys_start, (uint)k->phys_start, k->perm) < 0) {
+			freevm(pgdir);
+			return 0;
+		}
+	return pgdir;
 }
 
 // Allocate one page table for the machine for the kernel address
@@ -243,6 +246,7 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 
 	a = PGROUNDUP(oldsz);
 	for(; a < newsz; a += PGSIZE){
+		cprintf("allocuvm: a %d\n", a);
 		mem = kalloc();
 		if(mem == 0){
 			cprintf("allocuvm out of memory\n");
@@ -267,28 +271,29 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 int
 deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 {
-  pte_t *pte;
-  uint a, pa;
+	cprintf("deallocuvm: oldsz %d newsz %d\n", oldsz, newsz);
+	pte_t *pte;
+	uint a, pa;
 
-  if(newsz >= oldsz)
-    return oldsz;
+	if(newsz >= oldsz)
+		return oldsz;
 
-  a = PGROUNDUP(newsz);
-  for(; a  < oldsz; a += PGSIZE){
-    pte = walkpgdir(pgdir, (char*)a, 0);
-    cprintf("deallocuvm: a %u pte %d\n", a, *pte);
-    if(!pte)
-      a = PGADDR(PDX(a) + 1, 0, 0) - PGSIZE;
-    else if((*pte & PTE_P) != 0){
-      pa = PTE_ADDR(*pte);
-      if(pa == 0)
-        panic("kfree\n");
-      char *v = P2V(pa);
-      kfree(v);
-      *pte = 0;
-    }
-  }
-  return newsz;
+	a = PGROUNDUP(newsz);
+	for(; a  < oldsz; a += PGSIZE){
+		pte = walkpgdir(pgdir, (char*)a, 0);
+		// cprintf("deallocuvm: a %u pte %d\n", a, *pte);
+		if(!pte)
+			a = PGADDR(PDX(a) + 1, 0, 0) - PGSIZE;
+		else if((*pte & PTE_P) != 0){
+			pa = PTE_ADDR(*pte);
+			if(pa == 0) 
+				panic("kfree\n");
+			char *v = P2V(pa);
+			kfree(v);
+			*pte = 0;
+		}
+	}
+	return newsz;
 }
 
 // Free a page table and all the physical memory pages
@@ -296,18 +301,19 @@ deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 void
 freevm(pde_t *pgdir)
 {
-  uint i;
+	cprintf("freevm: pgdir %d\n", pgdir);
+	uint i;
 
-  if(pgdir == 0)
-    panic("freevm: no pgdir");
-  deallocuvm(pgdir, KERNBASE, 0);
-  for(i = 0; i < NPDENTRIES; i++){
-    if(pgdir[i] & PTE_P){
-      char * v = P2V(PTE_ADDR(pgdir[i]));
-      kfree(v);
-    }
-  }
-  kfree((char*)pgdir);
+	if(pgdir == 0)
+		panic("freevm: no pgdir");
+	deallocuvm(pgdir, KERNBASE, 0);
+	for(i = 0; i < NPDENTRIES; i++){
+		if(pgdir[i] & PTE_P){
+			char * v = P2V(PTE_ADDR(pgdir[i]));
+			kfree(v);
+		}
+	}
+	kfree((char*)pgdir);
 }
 
 // Clear PTE_U on a page. Used to create an inaccessible
@@ -338,13 +344,10 @@ copyuvm(pde_t *pgdir, uint sz)
 		return 0;
 	for(i = 0; i < sz; i += PGSIZE){
 		if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
-			// panic("copyuvm: pte should exist");
-			// Now that the page allocation is lazy, the page table entry may not exist
-			// for the page. In this case, just skip the page.
-			continue;
+			panic("copyuvm: the process doesn't have a page directory");
 		if(!(*pte & PTE_P))
 			// panic("copyuvm: page not present");
-			// Now that the page allocation is lazy, the page table entry may not exist
+			// Now that the page allocation is lazy, the page table entry may not be present
 			// for the page. In this case, just skip the page.
 			continue;
 		// cprintf("copyuvm: i = %d\n", i);
@@ -353,7 +356,7 @@ copyuvm(pde_t *pgdir, uint sz)
 		// Old code
 		if((mem = kalloc()) == 0)
 			goto bad;
-		memmove(mem, (char*)P2V(pa), PGSIZE);
+		memmove(mem, (const void*)P2V(pa), PGSIZE);
 		// New code
 		// flags&= ~PTE_W; // Make the child's page read-only
 		// flags|= PTE_CoW; // Turn on copy-on-write for the child
@@ -467,6 +470,8 @@ page_fault_handler(void)
 			return;
 		}
 		cprintf("page_fault_handler: mapped page for pid %d\n", curproc->pid);
+		// Flush the TLB
+		lcr3(V2P(curproc->pgdir));
 		// Return to the trap handler
 		return;
 	} else {
