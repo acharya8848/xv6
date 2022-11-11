@@ -39,6 +39,16 @@ extern void page_fault_handler(void);
 void
 trap(struct trapframe *tf)
 {
+	if(tf->trapno == T_PGFLT){
+		if ((tf->cs & 3) == 0){
+			cprintf("Kernel page fault\n");
+		}
+		page_fault_handler();
+		// If the process was killed by a page fault, we're done.
+		if(myproc()->killed)
+			exit();
+		return;
+	}
 	if(tf->trapno == T_SYSCALL){
 		if(myproc()->killed)
 		exit();
@@ -80,9 +90,10 @@ trap(struct trapframe *tf)
 				cpuid(), tf->cs, tf->eip);
 		lapiceoi();
 		break;
-	case T_PGFLT:// Page faults
-		page_fault_handler(); 
-		break;
+	// Apprently this doesn't work
+	// case T_PGFLT:// Page faults
+	// 	page_fault_handler(); 
+	// 	break;
 
 	//PAGEBREAK: 13
 	default:

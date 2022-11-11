@@ -174,7 +174,7 @@ growproc(int n)
 	// 	return -1;
 	// }
 	curproc->sz+= n;
-	cprintf("growproc: pid %d, increased by %d, new size %d\n", curproc->pid, n, curproc->sz);
+	// cprintf("growproc: pid %d, increased by %d, new size %d\n", curproc->pid, n, curproc->sz);
 	switchuvm(curproc);
 	return 0;
 }
@@ -223,7 +223,7 @@ fork(void)
 
 	release(&ptable.lock);
 
-	cprintf("fork: new process pid = %d\n", pid);
+	// cprintf("fork: new process pid = %d\n", pid);
 
 	return pid;
 }
@@ -292,7 +292,7 @@ wait(void)
 				continue;
 			havekids = 1;
 			if(p->state == ZOMBIE){
-				cprintf("wait: found a zombie at pid %d\n", p->pid);
+				// cprintf("wait: found a zombie at pid %d\n", p->pid);
 				// Found one.
 				pid = p->pid;
 				kfree(p->kstack);

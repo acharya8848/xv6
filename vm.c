@@ -69,13 +69,13 @@ walkpgdir_wrap(pde_t *pgdir, const void *va, int alloc)
 static int
 mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
 {
-	cprintf("manpages called\n");
+	//cprintf("manpages called\n");
 	char *a, *last;
 	pte_t *pte; 
 
 	a = (char*)PGROUNDDOWN((uint)va);
 	last = (char*)PGROUNDDOWN(((uint)va) + size - 1);
-	cprintf("a: %x, last: %x\n", a, last);
+	//cprintf("a: %x, last: %x\n", a, last);
 	for(;;){
 		if((pte = walkpgdir(pgdir, a, 1)) == 0)
 			return -1;
@@ -131,7 +131,7 @@ static struct kmap {
 pde_t*
 setupkvm(void)
 {
-	cprintf("setupkvm called\n");
+	//cprintf("setupkvm called\n");
 	pde_t *pgdir;
 	struct kmap *k;
 
@@ -141,7 +141,7 @@ setupkvm(void)
 	if (P2V(PHYSTOP) > (void*)DEVSPACE)
 		panic("PHYSTOP too high");
 	for(k = kmap; k < &kmap[NELEM(kmap)]; k++)
-		// cprintf("setupkvm: calling mappages\n");
+		// //cprintf("setupkvm: calling mappages\n");
 		if(mappages(pgdir, k->virt, k->phys_end - k->phys_start, (uint)k->phys_start, k->perm) < 0) {
 			freevm(pgdir);
 			return 0;
@@ -235,7 +235,7 @@ loaduvm(pde_t *pgdir, char *addr, struct inode *ip, uint offset, uint sz)
 int
 allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 {
-	cprintf("allocuvm: oldsz %d newsz %d\n", oldsz, newsz);
+	//cprintf("allocuvm: oldsz %d newsz %d\n", oldsz, newsz);
 	char *mem;
 	uint a;
 
@@ -246,16 +246,16 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 
 	a = PGROUNDUP(oldsz);
 	for(; a < newsz; a += PGSIZE){
-		cprintf("allocuvm: a %d\n", a);
+		//cprintf("allocuvm: a %d\n", a);
 		mem = kalloc();
 		if(mem == 0){
-			cprintf("allocuvm out of memory\n");
+			//cprintf("allocuvm out of memory\n");
 			deallocuvm(pgdir, newsz, oldsz);
 			return 0;
 		}
 		memset(mem, 0, PGSIZE);
 		if(mappages(pgdir, (char*)a, PGSIZE, V2P(mem), PTE_W|PTE_U) < 0){
-			cprintf("allocuvm out of memory (2)\n");
+			//cprintf("allocuvm out of memory (2)\n");
 			deallocuvm(pgdir, newsz, oldsz);
 			kfree(mem);
 			return 0;
@@ -271,7 +271,7 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 int
 deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 {
-	cprintf("deallocuvm: oldsz %d newsz %d\n", oldsz, newsz);
+	//cprintf("deallocuvm: oldsz %d newsz %d\n", oldsz, newsz);
 	pte_t *pte;
 	uint a, pa;
 
@@ -281,7 +281,7 @@ deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 	a = PGROUNDUP(newsz);
 	for(; a  < oldsz; a += PGSIZE){
 		pte = walkpgdir(pgdir, (char*)a, 0);
-		// cprintf("deallocuvm: a %u pte %d\n", a, *pte);
+		// //cprintf("deallocuvm: a %u pte %d\n", a, *pte);
 		if(!pte)
 			a = PGADDR(PDX(a) + 1, 0, 0) - PGSIZE;
 		else if((*pte & PTE_P) != 0){
@@ -301,7 +301,7 @@ deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 void
 freevm(pde_t *pgdir)
 {
-	cprintf("freevm: pgdir %d\n", pgdir);
+	//cprintf("freevm: pgdir %d\n", pgdir);
 	uint i;
 
 	if(pgdir == 0)
@@ -350,7 +350,7 @@ copyuvm(pde_t *pgdir, uint sz)
 			// Now that the page allocation is lazy, the page table entry may not be present
 			// for the page. In this case, just skip the page.
 			continue;
-		// cprintf("copyuvm: i = %d\n", i);
+		// //cprintf("copyuvm: i = %d\n", i);
 		pa = PTE_ADDR(*pte);
 		flags = PTE_FLAGS(*pte); // Keep the parent process's flags
 		// Old code
@@ -370,7 +370,7 @@ copyuvm(pde_t *pgdir, uint sz)
 	return d;
 
 	bad:
-	cprintf("copyuvm: pte to physical address mapping failed\n");
+	//cprintf("copyuvm: pte to physical address mapping failed\n");
 	freevm(d);
 	return 0;
 }
@@ -422,11 +422,11 @@ page_fault_handler(void)
 {
 	// Get the current process
 	struct proc *curproc = myproc();
-	cprintf("page_fault_handler: entered pid %d\n", curproc->pid);
+	//cprintf("page_fault_handler: entered pid %d\n", curproc->pid);
 	// Get the address that caused the fault.
 	uint fault_va = rcr2();
 	// Check if the virtual address is within range
-	if (fault_va >= curproc->sz) {
+	if ((fault_va >= curproc->sz)) {
 		// The virtual address is out of range.
 		cprintf("page_fault_handler: virtual address %d out of range for max %d for pid %d\n", fault_va, curproc->sz, curproc->pid);
 		// Shred the process
@@ -434,18 +434,18 @@ page_fault_handler(void)
 		// Return to the trap handler
 		return;
 	}
-	cprintf("page_fault_handler: fault_va = %d within bounds for pid %d\n", fault_va, curproc->pid);
+	//cprintf("page_fault_handler: fault_va = %d within bounds for pid %d\n", fault_va, curproc->pid);
 	// Get the page table entry
 	pte_t *pte;
 	if (((pte = walkpgdir(curproc->pgdir, (void *)fault_va, 0)) == 0)) {
 		// The page directory does not exist
 		cprintf("page_fault_handler: page directory does not exist for pid %d\n", curproc->pid);
 		// Shred the process
-		curproc->killed = 1;
+		// curproc->killed = 1;
 		// Return to the trap handler
 		return;
-	} else if (!(PTE_FLAGS(*pte) & PTE_P)) { // Dynamic paging
-		cprintf("page_fault_handler: page not present, dynamically allocating it for pid %d\n", curproc->pid);
+	} else if (!(PTE_FLAGS(*pte) & PTE_P) || (PTE_FLAGS(*pte) & PTE_U)) { // Dynamic paging
+		//cprintf("page_fault_handler: page not present, dynamically allocating it for pid %d\n", curproc->pid);
 		// The page table entry does not exist which means it was lazily allocated
 		// Allocate a page
 		char *mem;
@@ -457,11 +457,15 @@ page_fault_handler(void)
 			// Return to the trap handler
 			return;
 		}
-		cprintf("page_fault_handler: allocated memory at %d for pid %d\n", V2P(mem), curproc->pid);
+		//cprintf("page_fault_handler: allocated memory at %d for pid %d\n", V2P(mem), curproc->pid);
 		// Zero out the newly allocated page
 		memset((void *)mem, 0, PGSIZE);
+		// Round the fault address down to the nearest page boundary
+		uint fault_va_rounded = PGROUNDDOWN(fault_va);
 		// Map the page to the virtual address
-		if (mappages(curproc->pgdir, (void *)fault_va, PGSIZE, V2P(mem), PTE_W|PTE_U) < 0) {
+		if (mappages(curproc->pgdir, (void *)fault_va_rounded, PGSIZE, V2P(mem), PTE_W|PTE_U) < 0) {
+			// Free the recently allocated page
+			kfree(mem);
 			// There was an error mapping the page
 			cprintf("page_fault_handler: error mapping page for pid %d\n", curproc->pid);
 			// Shred the process
@@ -469,7 +473,7 @@ page_fault_handler(void)
 			// Return to the trap handler
 			return;
 		}
-		cprintf("page_fault_handler: mapped page for pid %d\n", curproc->pid);
+		//cprintf("page_fault_handler: mapped page for pid %d\n", curproc->pid);
 		// Flush the TLB
 		lcr3(V2P(curproc->pgdir));
 		// Return to the trap handler
@@ -479,6 +483,8 @@ page_fault_handler(void)
 		// A page fault happened on a page that is present, but not user accessible
 		// Something has to have gone very very wrong for this to happen.
 		cprintf("page_fault_handler: page is present, but not user accessible. Unexpected page fault for pid %d\n", curproc->pid);
+		// Print the pte flags
+		// //cprintf("page_fault_handler: pte %d pte flags: %d for pid %d\n", *pte, PTE_FLAGS(*pte), curproc->pid);
 		// Shred the process
 		curproc->killed = 1;
 		// Return to the trap handler

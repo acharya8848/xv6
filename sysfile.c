@@ -15,6 +15,7 @@
 #include "sleeplock.h"
 #include "file.h"
 #include "fcntl.h"
+#include "memlayout.h"
 
 // Lottery scheduling
 #include "processesinfo.h"
@@ -571,8 +572,8 @@ extern struct {
 
 int sys_isphysicalpagefree(void) {
 	// Get the argument from userspace
-	int *page = NULL;
-	if(argint(0, page) < 0) {
+	int page = 0;
+	if(argint(0, &page) < 0) {
 		return -1;
 	}
 	// Lock if necessary
@@ -580,8 +581,8 @@ int sys_isphysicalpagefree(void) {
 		acquire(&kmem.lock);
 	// Check if the page is free by checking the free list in kalloc.c
 	struct run *r = kmem.freelist;
-	while(r != 0) {
-		if((int)r == *page) {
+	while(r) {
+		if(V2P(r) == (page << 12)) {
 			// Release the lock
 			if(kmem.use_lock)
 				release(&kmem.lock);
