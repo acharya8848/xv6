@@ -426,7 +426,7 @@ page_fault_handler(void)
 	// Get the address that caused the fault.
 	uint fault_va = rcr2();
 	// Check if the virtual address is within range
-	if ((fault_va >= curproc->sz)) {
+	if ((fault_va >= curproc->sz) || (fault_va > KERNBASE)) {
 		// The virtual address is out of range.
 		cprintf("page_fault_handler: virtual address %d out of range for max %d for pid %d\n", fault_va, curproc->sz, curproc->pid);
 		// Shred the process
@@ -436,15 +436,18 @@ page_fault_handler(void)
 	}
 	//cprintf("page_fault_handler: fault_va = %d within bounds for pid %d\n", fault_va, curproc->pid);
 	// Get the page table entry
-	pte_t *pte;
-	if (((pte = walkpgdir(curproc->pgdir, (void *)fault_va, 0)) == 0)) {
-		// The page directory does not exist
-		cprintf("page_fault_handler: page directory does not exist for pid %d\n", curproc->pid);
-		// Shred the process
-		// curproc->killed = 1;
-		// Return to the trap handler
-		return;
-	} else if (!(PTE_FLAGS(*pte) & PTE_P) || (PTE_FLAGS(*pte) & PTE_U)) { // Dynamic paging
+	// pte_t *pte;
+	// if (((pte = walkpgdir(curproc->pgdir, (void *)fault_va, 0)) == 0)) {
+	// 	// The page directory does not exist
+	// 	cprintf("page_fault_handler: walkpagedir failed for pid %d in virtual address 0x%x\n", curproc->pid, fault_va);
+	// 	// Shred the process
+	// 	curproc->killed = 1;
+	// 	// Return to the trap handler
+	// 	return;
+	// } else if (!(PTE_FLAGS(*pte) & PTE_P) || (PTE_FLAGS(*pte) & PTE_U)) { // Dynamic paging
+	// This is insanity. There is a reason why walkpagedir returns a null pointer.
+	pte_t *pte = walkpgdir(curproc->pgdir, (void *)fault_va, 0);
+	if (!(PTE_FLAGS(*pte) & PTE_P) || (PTE_FLAGS(*pte) & PTE_U)) { // Dynamic paging
 		//cprintf("page_fault_handler: page not present, dynamically allocating it for pid %d\n", curproc->pid);
 		// The page table entry does not exist which means it was lazily allocated
 		// Allocate a page
@@ -482,7 +485,7 @@ page_fault_handler(void)
 		// We're not supposed to get to this point
 		// A page fault happened on a page that is present, but not user accessible
 		// Something has to have gone very very wrong for this to happen.
-		cprintf("page_fault_handler: page is present, but not user accessible. Unexpected page fault for pid %d\n", curproc->pid);
+		cprintf("page_fault_handler: page is present, but not user accessible. Guard page access attempt from pid %d\n", curproc->pid);
 		// Print the pte flags
 		// //cprintf("page_fault_handler: pte %d pte flags: %d for pid %d\n", *pte, PTE_FLAGS(*pte), curproc->pid);
 		// Shred the process
