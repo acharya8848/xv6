@@ -433,6 +433,12 @@ page_fault_handler(void)
 		curproc->killed = 1;
 		// Return to the trap handler
 		return;
+	} else if (fault_va == 0) {
+		cprintf("page_fault_handler: address 0 cannot be accessed");
+		// Shred the process
+		curproc->killed = 1;
+		// Return to the trap handler
+		return;
 	}
 	//cprintf("page_fault_handler: fault_va = %d within bounds for pid %d\n", fault_va, curproc->pid);
 	// Get the page table entry
