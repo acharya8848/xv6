@@ -633,20 +633,20 @@ int sys_dumppagetable(void) {
 				} else {
 					// At this point, we have a valid page table entry
 					// Print the virtual address
-					cprintf("   %x\t\t", *pte);
+					cprintf(" \t%d\t\t", (int)(i/PGSIZE));
 					// Print the physical address
 					cprintf("\t   %x\t\t", PTE_ADDR(*pte));
 					// Print the writable bit
 					if (PTE_FLAGS(*pte) & PTE_W) {
-						cprintf("\tYes\t\t\t");
+						cprintf("\t  Yes\t\t\t");
 					} else {
-						cprintf("\tNo\t\t\t");
+						cprintf("\t  No\t\t\t");
 					}
 					// Print the user mode bit
 					if (PTE_FLAGS(*pte) & PTE_U) {
-						cprintf("Yes\r\n");
+						cprintf("   Yes\r\n");
 					} else {
-						cprintf("No\r\n");
+						cprintf("   No\r\n");
 					}
 				}
 			}
